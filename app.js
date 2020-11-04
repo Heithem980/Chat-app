@@ -122,15 +122,16 @@
   });
 
   // send message to peer
+
   const sendMessage = (e) => {
     if (!dataConnection) return;
-    // if ((newMessageEl.value = "")) return;
+    if (newMessageEl.value === "") return;
 
-    if (e.keycode === 13 || e.type === "click") {
+    if (e.keyCode === 13 || e.type === "click") {
       dataConnection.send(newMessageEl.value);
       printMessage(newMessageEl.value, "me");
 
-      // clear text input field.
+      newMessageEl.value = "";
     }
     // set focus on text input field
     newMessageEl.focus();
