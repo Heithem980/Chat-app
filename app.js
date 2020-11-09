@@ -2,12 +2,22 @@
 
 (function () {
   let dataConnection = null;
+  let mediaConection = null;
+  const videoOfMeEl = document.querySelector(".video-container.me video");
   const peersEl = document.querySelector(".peers");
   const sendButtonEl = document.querySelector(".send-new-message-button");
   const newMessageEl = document.querySelector(".new-message");
   const messagesEl = document.querySelector(".messages");
   const theirVideoContainer = document.querySelector(".video-container.them");
+  const videoOfThemEl = document.querySelector(".video-container.them video");
   let myPeerId = location.hash.slice(1);
+
+  navigator.mediaDevices
+    .getUserMedia({ audio: false, video: true })
+    .then((stream) => {
+      videoOfMeEl.muted = true;
+      videoOfMeEl.srcObject = stream;
+    });
 
   //connect to peer server.
   let peer = new Peer(myPeerId, {
@@ -54,7 +64,26 @@
     const event = new CustomEvent("peer-changed", { detail: connection.peer });
     document.dispatchEvent(event);
   });
+  // Eventlistener for incoming video call
+  peer.on("call", (incomingCall) => {
+    mediaConection && mediaConection.close();
 
+    // change start to stop button
+    startVideoButton.classList.remove("active");
+    stopVideoButton.classList.add("active");
+
+    // answer incoming call
+    navigator.mediaDevices
+      .getUserMedia({ audio: false, video: true })
+      .then((myStream) => {
+        incomingCall.answer(myStream);
+        mediaConection = incomingCall;
+        mediaConection.on("stream", (theirStream) => {
+          videoOfThemEl.muted = true;
+          videoOfThemEl.srcObject = theirStream;
+        });
+      });
+  });
   // Eventlistener for click "refresh list"
   const listPeersButtonEl = document.querySelector(".list-all-peers-button");
   listPeersButtonEl.addEventListener("click", () => {
@@ -88,8 +117,6 @@
     dataConnection = peer.connect(theirPeerId);
 
     dataConnection.on("open", () => {
-      console.log("connection open");
-
       // Dispatch custum Event with connected peer Id
       const event1 = new CustomEvent("peer-changed", {
         detail: theirPeerId,
@@ -117,8 +144,8 @@
 
     theirVideoContainer.querySelector(".name").innerText = peerId;
     theirVideoContainer.classList.add("connected");
-    theirVideoContainer.querySelector("start").classList.add("active");
-    theirVideoContainer.querySelector("stop").classList.remove("active");
+    theirVideoContainer.querySelector(".start").classList.add("active");
+    theirVideoContainer.querySelector(".stop").classList.remove("active");
   });
 
   // send message to peer
@@ -146,7 +173,26 @@
   const stopVideoButton = theirVideoContainer.querySelector(".stop");
   startVideoButton.addEventListener("click", () => {
     startVideoButton.classList.remove("active");
-
     stopVideoButton.classList.add("active");
+
+    // Start video call with remote peer.
+    navigator.mediaDevices
+      .getUserMedia({ audio: false, video: true })
+      .then((myStream) => {
+        mediaConection && mediaConection.close();
+        const theirPeerId = dataConnection.peer;
+        mediaConection = peer.call(theirPeerId, myStream);
+        mediaConection.on("stream", (theirStream) => {
+          videoOfThemEl.muted = true;
+          videoOfThemEl.srcObject = theirStream;
+        });
+      });
+  });
+
+  // Event listener for click "hang up".
+  stopVideoButton.addEventListener("click", () => {
+    stopVideoButton.classList.remove("active");
+    startVideoButton.classList.add("active");
+    mediaConection && mediaConection.close();
   });
 })();
